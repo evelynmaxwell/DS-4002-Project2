@@ -4,8 +4,8 @@ It combines date and time into a single timestamp, removes irrelevant columns,
 cleans missing location data, and standardizes column names for consistency.
 
 Input:
-    - Raw collision dataset loaded in the dataset directory.
-          ../DATA/collisions_raw.csv
+    - Raw collision dataset compressed into ZIP file in the dataset directory.
+          ../DATA/collisions_raw.csv.zip
 
 Processing steps:
     1. Combine 'CRASH DATE' and 'CRASH TIME' into a unified timestamp column.
@@ -27,11 +27,11 @@ import pandas as pd
 from pathlib import Path
 
 # ----- File paths -----
-RAW_PATH = Path("../DATA/collisions_raw.csv")
+RAW_PATH = Path("../DATA/collisions_raw.csv.zip")
 OUTPUT_PATH = Path("../DATA/collisions_cleaned.csv")
 
 # ----- Load raw data -----
-df = pd.read_csv(RAW_PATH)
+df = pd.read_csv(RAW_PATH, compression="zip")
 
 # ----- Combine crash date and time into a unified timestamp -----
 df["timestamp"] = df["CRASH DATE"] + " " + df["CRASH TIME"]
