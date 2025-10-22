@@ -41,6 +41,7 @@ import pandas as pd
 import numpy as np
 from prophet import Prophet
 from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.preprocessing import StandardScaler
 
 # ---------- Helper Functions --------------------------------------------------
 def time_series_split(df, train_ratio=0.8):
@@ -139,9 +140,15 @@ def fit_forecast_hourly_for_day(
 
     # Cap to last N years before splitting
     cap_start = series["ds"].max() - pd.Timedelta(days=365 * cap_years)
-    series_cap = series.loc[series["ds"] >= cap_start].reset_index(drop=True)
+    series = series.loc[series["ds"] >= cap_start].reset_index(drop=True)
 
-    train, test = time_series_split(series_cap, train_ratio=train_ratio)
+    # Add regressors
+    series["hour"] = series["ds"].dt.hour
+    scaler = StandardScaler()
+    series["hour_scaled"] = scaler.fit_transform(series[["hour"]])   # scale AFTER 2y filter
+    series["is_weekend"]  = (series["ds"].dt.dayofweek >= 5).astype(int)
+
+    train, test = time_series_split(series, train_ratio=train_ratio)
 
     m = Prophet(
         yearly_seasonality=True,
@@ -157,29 +164,47 @@ def fit_forecast_hourly_for_day(
         interval_width=0.8
     )
     m.add_country_holidays(country_name="US")
-    m.add_seasonality(name="weekly", period=7, fourier_order=10, prior_scale=10)
-    m.add_seasonality(name="daily",  period=1, fourier_order=12, prior_scale=10)
+    m.add_seasonality(name='daily_24h', period=24/24, fourier_order=12)  # captures within-day pattern
+    m.add_seasonality(name='weekly', period=7, fourier_order=15)
+    m.add_seasonality(name='monthly', period=30.5, fourier_order=5)
     m.add_regressor("is_weekend")
+    m.add_regressor("hour_scaled")
 
-    m.fit(train[["ds", "y", "is_weekend"]])
+    m.fit(train[["ds", "y", "is_weekend","hour_scaled"]])
 
-    hours = pd.date_range(start=target_date, end=target_date + pd.Timedelta(hours=23), freq="H")
+    # Evaluate on test (hourly + daily-agg MAPE)
+    fcst_test = m.predict(test[["ds", "is_weekend", "hour_scaled"]])
+    eval_df = test[["ds", "y"]].merge(fcst_test[["ds", "yhat"]], on="ds", how="left")
+    rmse, mae, mape = evaluate_forecast(eval_df["y"].values, eval_df["yhat"].values)
+
+    tmp = eval_df.copy()
+    tmp["date"] = tmp["ds"].dt.date
+    agg = tmp.groupby("date", as_index=False).agg(y_day=("y", "sum"),
+                                                 yhat_day=("yhat", "sum"))
+    daily_den = agg["y_day"].replace(0, np.nan)
+    mape_daily = (np.abs(agg["y_day"] - agg["yhat_day"]) / daily_den).mean() * 100
+
+    print(f"\nHOURLY PROPHET MODEL — {borough}")
+    print(f"RMSE: {rmse:.2f} | MAE: {mae:.2f} | MAPE (hourly): {mape:.2f}% | MAPE (daily agg): {mape_daily:.2f}%")
+
+    # Build the 24-hour forecast frame for the requested date (using same scaler)
+    hours = pd.date_range(start=target_date, periods=24, freq="h")
     future = pd.DataFrame({"ds": hours})
-    future["is_weekend"] = (future["ds"].dt.dayofweek >= 5).astype(int)
+    future["is_weekend"]  = (future["ds"].dt.dayofweek >= 5).astype(int)
+    future["hour"]        = future["ds"].dt.hour
+    future["hour_scaled"] = scaler.transform(future[["hour"]])
 
-    pred = m.predict(future)
-    cols = ["ds", "yhat"] + [c for c in ("yhat_lower", "yhat_upper") if c in pred.columns]
-    pred = pred.loc[:, cols]
-    pred.insert(0, "borough", borough)
+    fcst = m.predict(future)
+    cols = ["ds", "yhat"] + [c for c in ("yhat_lower", "yhat_upper") if c in fcst.columns]
+    fcst = fcst.loc[:, cols]
+    fcst.insert(0, "borough", borough)
 
-    if verbose and len(test):
-        fcst_test = m.predict(test[["ds", "is_weekend"]])
-        eval_df = test[["ds", "y"]].merge(fcst_test[["ds", "yhat"]], on="ds", how="left")
-        rmse, mae, mape = evaluate_forecast(eval_df["y"].values, eval_df["yhat"].values)
-        print(f"[{borough}] Test RMSE: {rmse:.2f} | MAE: {mae:.2f} | MAPE (hourly): {mape:.2f}%")
+    # Print just the clean 24-row table
+    print("\n24-HOUR FORECAST TABLE:")
+    print(fcst.to_string(index=False))
 
-    return pred
+    return fcst
 
-# --------------------------- Example ---------------------------------
-fc_bk = fit_forecast_hourly_for_day("Brooklyn", "2025-11-01", cap_years=2, uncertainty_samples=0)
-print(fc_bk.to_string(index=False))
+# --------------------------- Example run ---------------------------------
+fc = fit_forecast_hourly_for_day("Brooklyn", "2025-11-01", uncertainty_samples=0)
+print(fc.to_string(index=False))
