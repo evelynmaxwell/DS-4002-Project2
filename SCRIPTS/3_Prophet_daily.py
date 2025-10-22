@@ -90,3 +90,40 @@ rmse, mae, mape = evaluate_forecast(eval_df["y"].values, eval_df["yhat"].values)
 
 print("\nDAILY PROPHET MODEL:")
 print(f"RMSE: {rmse:.2f} | MAE: {mae:.2f} | MAPE: {mape:.2f}%")
+
+# ---------- Prophet Visual: Train vs Test & Predictions ----------
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Merge predictions onto full series so we can plot in one place
+full = daily[["ds","y"]].copy()
+full = full.merge(fcst[["ds","yhat"]], on="ds", how="left")  # yhat will be present only on test dates
+
+split_date = test["ds"].min()
+
+plt.figure(figsize=(12, 5))
+
+# 1) Train data (light gray)
+mask_train = full["ds"] < split_date
+plt.plot(full.loc[mask_train, "ds"], full.loc[mask_train, "y"],
+         color="#bfbfbf", linewidth=1.0, label="Train Data")
+
+# 2) Test actuals (black)
+mask_test = full["ds"] >= split_date
+plt.plot(full.loc[mask_test, "ds"], full.loc[mask_test, "y"],
+         color="black", linewidth=1.2, label="Actual (Test)")
+
+# 3) Prophet predictions on test window (blue)
+plt.plot(full.loc[mask_test, "ds"], full.loc[mask_test, "yhat"],
+         color="royalblue", linewidth=1.2, label="Prophet Prediction")
+
+# 4) Vertical split line
+plt.axvline(split_date, color="red", linestyle="--", linewidth=1.2, label="Train/Test Split")
+
+# Cosmetics
+plt.title("Daily Prophet Model — Observed vs Predicted")
+plt.xlabel("Date")
+plt.ylabel("Total Collisions")
+plt.legend(frameon=True)
+plt.tight_layout()
+plt.show()
