@@ -54,21 +54,15 @@ DS-4002-Project2
      - Ensure you have Python 3 installed on your system.
      - See section 1 for packages needed.
   2. **Prepare the data**
-     - You can either preprocess the raw data yourself or use the pre-cleaned dataset.
      - Option A: Preprocess Raw Data Yourself
-         - Navigate to the `DATA` folder
-         - Download and unzip `collisions_raw.csv.zip` and move the extracted       `collisions_raw.csv` file back into the `DATA` folder.
-         - Navigate to the `SCRIPTS` folder and run the `preprocessing.py` file, which will save the preprocessed data in a new `collisions_cleaned.csv` file within the `DATA` folder.
+         - Download and unzip `collisions_raw.csv.zip` from `DATA` folder. Manually add `collisions_raw.csv` file to `DATA` folder.
+         - Run the `preprocessing.py` file from the `SCRIPTS` folder, which will save preprocessed data in a new `collisions_cleaned.csv` file in the `DATA` folder.
      - Option B: Use Preprocessed Data
-         - Download the `collisions_cleaned.csv.zip` file from `DATA` folder.
-         - Unzip and manually add the `collisions_cleaned.csv` file to the DATA folder in your IDE or local environment.
+         - Download and unzip `collisions_cleaned.csv.zip` from `DATA` folder.
+         - Manually add `collisions_cleaned.csv` file to the `DATA` folder in your IDE or local environment.
   3. **Run model scripts**
      - Navigate to the `SCRIPTS` folder.
-     - Scripts 1-3 train and test on historical data only to evaluate model accuracy. Each pair corresponds to a specific model (baseline, SARIMA, Prophet) and should be executed in numerical order to reproduce results.
-         - Step 1: Baseline models for daily/hourly forecasts
-         - Step 2: SARIMA models for daily/hourly forecasts
-         - Step 3: Prophet models for daily/hourly forecasts
-     - Each modeling script (1-3) automatically:
+     - Scripts 1-3 train and test on historical data only to evaluate model accuracy. Each pair corresponds to a specific model (baseline, SARIMA, Prophet) and should be executed in numerical order to reproduce results. Each script:
          - Prints evaluation metrics: RMSE, MAE, and MAPE.
          - Generates plots of observed vs. predicted collisions and saves to `OUTPUT` folder.
   4. **Forecast Future Collisions**
