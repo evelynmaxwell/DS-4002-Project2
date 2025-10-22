@@ -4,9 +4,9 @@ Forecast Daily Motor Vehicle Collisions per NYC Borough using Prophet
 
 Description:
     This script fits separate Prophet models for each NYC borough to forecast
-    **daily collision counts** using historical data. It uses geographic
-    bounding boxes to assign each record to a borough. The script
-    prints a clean summary of evaluation metrics and a single-day forecast
+    **daily collision counts** for a specified date using historical data.
+    It uses geographic bounding boxes to assign each record to boroughs.
+    The script prints a clean summary of evaluation metrics and a single-day forecast
     (with uncertainty intervals) for each borough and the overall city total.
 
 Inputs:
@@ -18,7 +18,7 @@ Inputs:
 Process:
     1. Parse and clean input data.
     2. Convert "(lat, lon)" strings into numeric latitude and longitude.
-    3. Assign each record to one of five boroughs using coarse bounding boxes.
+    3. Assign each record to one of five boroughs using coarse geographic bounding boxes.
     4. Aggregate data into daily counts per borough and flag weekends.
     5. For each borough:
         • Train Prophet on 80% of the series.
@@ -44,7 +44,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 # ---------- Helper Functions --------------------------------------------------
 def time_series_split(df, train_ratio=0.8):
-    """Chronologically split dataframe into train/test portions by ratio."""
+    """Chronologically split a dataframe with ['ds','y', ...] into train/test segments."""
     n = len(df)
     cut = int(n * train_ratio)
     return df.iloc[:cut].copy(), df.iloc[cut:].copy()
@@ -95,12 +95,12 @@ df["latitude"]  = pd.to_numeric(m[0], errors="coerce")
 df["longitude"] = pd.to_numeric(m[1], errors="coerce")
 df = df.dropna(subset=["latitude", "longitude"])
 
-# Keep only points within plausible NYC boundaries
+# Filter to plausible NYC bounds
 NYC_LAT = (40.45, 40.95)
 NYC_LON = (-74.30, -73.65)
 df = df[df["latitude"].between(*NYC_LAT) & df["longitude"].between(*NYC_LON)]
 
-# Assign boroughs and remove rows outside coarse boundaries
+# Tag by borough
 df["borough"] = assign_borough_vectorized(df)
 df = df.dropna(subset=["borough"])
 
