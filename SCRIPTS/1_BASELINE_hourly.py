@@ -1,3 +1,29 @@
+"""
+Description:
+    This script computes and evaluates a baseline 24-hour moving average model 
+    to forecast hourly motor vehicle collisions in New York City using 
+    cleaned crash data.
+
+Inputs:
+    - collisions_filtered.csv
+        A cleaned dataset of NYC motor vehicle collisions containing a 
+        'CRASH DATETIME' column with timestamps for each collision event.
+
+Process:
+    1. Reads and parses the collision data.
+    2. Trims the dataset to the most recent five years for relevance.
+    3. Aggregates crash counts at an hourly frequency.
+    4. Splits the time series chronologically into training (80%) and testing (20%) sets.
+    5. Applies a 24-hour rolling average as a baseline forecasting model.
+    6. Evaluates performance using RMSE, MAE, and MAPE metrics.
+
+Outputs:
+    - Printed model evaluation metrics:
+        RMSE, MAE, and MAPE (baseline expected ~ RMSE: 4–6, MAE: 2–4, MAPE varies)
+    - A visualization comparing actual vs. predicted hourly collisions, 
+      with a red line marking the train/test split.
+"""
+
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -17,10 +43,10 @@ print("Columns:", df.columns.tolist())
 # --- Trim dataset to last 5 years ---
 df = df[df["CRASH DATETIME"] >= (df["CRASH DATETIME"].max() - pd.DateOffset(years=5))]
 
-# --- Daily Aggregation ---
+# --- Hourly Aggregation ---
 df = (
     df.set_index("CRASH DATETIME")
-      .resample("d")
+      .resample("h")
       .agg({
           "COLLISION_ID": "count",
           "NUMBER OF PERSONS INJURED": "sum",
@@ -38,8 +64,8 @@ split_idx = int(len(df) * 0.8)
 train = df.iloc[:split_idx].copy()
 test = df.iloc[split_idx:].copy()
 
-# --- Baseline Model: 7-Day Moving Average ---
-window = 7
+# --- Baseline Model: 24-Hour Moving Average ---
+window = 24
 train.loc[:, "rolling_mean"] = train["TOTAL_COLLISIONS"].rolling(window=window).mean()
 
 baseline_preds = []
@@ -60,7 +86,7 @@ mape = np.mean(
            test["TOTAL_COLLISIONS"].replace(0, np.nan))
 ) * 100
 
-print("\nDaily Baseline Model (7-day Moving Average):")
+print("\nHourly Baseline Model (24-hour Moving Average):")
 print(f"RMSE: {rmse:.2f}")
 print(f"MAE: {mae:.2f}")
 print(f"MAPE: {mape:.2f}%")
@@ -72,8 +98,8 @@ plt.plot(test["CRASH DATETIME"], test["TOTAL_COLLISIONS"], color="black", linewi
 plt.plot(test["CRASH DATETIME"], test["baseline_pred"], color="blue", linewidth=1.2, label="Baseline Prediction")
 
 plt.axvline(x=test["CRASH DATETIME"].iloc[0], color="red", linestyle="--", label="Train/Test Split")
-plt.title("Daily Baseline Model (7-day Moving Average)")
-plt.xlabel("Date")
+plt.title("Hourly Baseline Model (24-hour Moving Average)")
+plt.xlabel("Datetime")
 plt.ylabel("Total Collisions")
 plt.legend()
 plt.tight_layout()
