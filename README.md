@@ -8,7 +8,6 @@
 - **Add-on Packages:**  
   - `pandas` - data loading and manipulation
   - `seaborn` – visualizing confusion matrices
-  - 
 
 
 ## 2. Documentation Map
@@ -42,12 +41,12 @@ Project1
 
 ## 3. Reproducing Our Results
   1. **Set up Python and install required add-on packages**
-     - Clone this repository: https://github.com/
+     - Clone this repository: https://github.com/evelynmaxwell/DS-4002-Project2/
      - Ensure you have Python 3 installed on your system.
      - See section 1 for packages needed.
   2. **Prepare the data**
      - If you wish to preprocess the raw data yourself, navigate to the `SCRIPTS` folder and run the `preprocessing.py` file, which will save the preprocessed data in a new `` file within the `DATA` folder.
-     - Otherwise, there is an existing `.csv` file in the `DATA` folder ready for use.
+     - Otherwise, download the `collisions_cleaned.csv.zip` file and unzip it. Then, manually add the `collisions_cleaned.csv` file to the DATA folder in your IDE.
   4. **Run model scripts**
      - Navigate to the `SCRIPTS` folder.
      - Each script corresponds to a model (
