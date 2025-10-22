@@ -15,9 +15,9 @@ Inputs:
 Process:
     1. Reads and parses the collision data.
     2. Aggregates crash counts at an hourly frequency.
-    3. Creates a simple calendar regressor (weekend).
-    4. Splits the series into training and testing sets (80/20).
-    5. Caps ONLY the training window to the most recent two years.
+    3. Filters to the LAST TWO YEARS of data.
+    4. Creates a simple calendar regressor (weekend).
+    5. Splits the series into training and testing sets (80/20) after the 2y filter.
     6. Fits a Prophet model with tuned weekly (7d) and daily (24h) seasonalities.
     7. Forecasts hourly crashes and evaluates performance (hourly + daily-aggregated MAPE).
 
@@ -42,7 +42,7 @@ def evaluate_forecast(actual, predicted):
 
 # ---------- Load & Aggregate Data ----------
 usecols = ["timestamp"]
-df = pd.read_csv("../DATA/collisions_cleaned.csv.zip", usecols=usecols,parse_dates=["timestamp"])
+df = pd.read_csv("../DATA/collisions_cleaned.csv", usecols=usecols,parse_dates=["timestamp"])
 
 hourly = (
     df.sort_values("timestamp")
@@ -55,22 +55,23 @@ hourly = (
       .rename(columns={"timestamp": "ds"})
 )
 
+# ---------- Filter to the LAST TWO YEARS FIRST ----------
+if not hourly.empty:
+    two_year_start = hourly["ds"].max() - pd.Timedelta(days=365*2)
+    hourly = hourly.loc[hourly["ds"] >= two_year_start].reset_index(drop=True)
+
 # Simple regressor: weekend flag (applies to each hour)
 hourly["is_weekend"] = (hourly["ds"].dt.dayofweek >= 5).astype(int)
 
-# ---------- Train/Test Split (80/20 FIRST) ----------
+# ---------- Train/Test Split (80/20 AFTER 2y filter) ----------
 train, test = time_series_split(hourly, train_ratio=0.8)
 
-# ---------- Cap ONLY the Training Window to Last 2 Years ----------
-cap_start = train["ds"].max() - pd.Timedelta(days=365*2)
-train_cap = train.loc[train["ds"] >= cap_start].reset_index(drop=True)
-# test remains unchanged (full 20%)
 
 m = Prophet(
-    yearly_seasonality=True,     
+    yearly_seasonality=True,
     weekly_seasonality=False,    # will add tuned weekly below
     daily_seasonality=False,     # will add tuned 24h below
-    n_changepoints=35,
+    n_changepoints=50,
     changepoint_range=0.90,
     changepoint_prior_scale=0.20,
     seasonality_prior_scale=10.0,
@@ -108,3 +109,40 @@ mape_daily = (np.abs(agg["y_day"] - agg["yhat_day"]) / daily_den).mean() * 100
 
 print("\nHOURLY PROPHET MODEL (train capped to last 2y post-split):")
 print(f"RMSE: {rmse:.2f} | MAE: {mae:.2f} | MAPE (hourly): {mape:.2f}% | MAPE (daily agg): {mape_daily:.2f}%")
+
+# ---------- Prophet Hourly Visual: Train vs Test & Predictions ----------
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# Merge predictions onto full hourly series
+full_h = hourly[["ds","y"]].copy()
+full_h = full_h.merge(fcst[["ds","yhat"]], on="ds", how="left")  # yhat only on test rows
+
+split_dt = test["ds"].min()
+
+plt.figure(figsize=(12, 5))
+
+# 1) Train data (light gray)
+mask_train = full_h["ds"] < split_dt
+plt.plot(full_h.loc[mask_train, "ds"], full_h.loc[mask_train, "y"],
+         color="#bfbfbf", linewidth=0.7, label="Train Data")
+
+# 2) Test actuals (black)
+mask_test = full_h["ds"] >= split_dt
+plt.plot(full_h.loc[mask_test, "ds"], full_h.loc[mask_test, "y"],
+         color="black", linewidth=0.9, label="Actual (Test)")
+
+# 3) Prophet predictions on test window (blue)
+plt.plot(full_h.loc[mask_test, "ds"], full_h.loc[mask_test, "yhat"],
+         color="royalblue", linewidth=0.9, label="Prophet Prediction")
+
+# 4) Vertical split line
+plt.axvline(split_dt, color="red", linestyle="--", linewidth=1.2, label="Train/Test Split")
+
+# Cosmetics
+plt.title("Hourly Prophet Model — Observed vs Predicted")
+plt.xlabel("Date")
+plt.ylabel("Hourly Collisions")
+plt.legend(frameon=True)
+plt.tight_layout()
+plt.show()
