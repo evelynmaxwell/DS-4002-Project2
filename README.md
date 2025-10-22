@@ -53,7 +53,7 @@ DS-4002-Project2
          - Unzip and manually add the `collisions_cleaned.csv` file to the DATA folder in your IDE or local environment.
   3. **Run model scripts**
      - Navigate to the `SCRIPTS` folder.
-     - Each script corresponds to a a specific model and should be executed in numerical order to reproduce results.
+     - Each script corresponds to a specific model and should be executed in numerical order to reproduce results.
          - Step 1: Baseline models for daily/hourly forecasts
          - Step 2: SARIMA models for daily/hourly forecasts
          - Step 3: Prophet models for daily/hourly forecasts
