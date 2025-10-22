@@ -19,7 +19,7 @@ Process:
 
 Outputs:
     - Printed model evaluation metrics:
-        RMSE, MAE, Hourly MAPE, and Daily MAPE
+        RMSE, MAE, Hourly MAPE, and Daily MAPE (expected ~ RMSE: 3.61, MAE: 2.81, MAPE (hourly): 38.88%, MAPE (daily agg): 11.70%)
     - PNG file of prediction plot
 """
 
