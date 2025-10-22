@@ -53,16 +53,15 @@ DS-4002-Project2
          - Unzip and manually add the `collisions_cleaned.csv` file to the DATA folder in your IDE or local environment.
   3. **Run model scripts**
      - Navigate to the `SCRIPTS` folder.
-     - Each script corresponds to a specific model and should be executed in numerical order to reproduce results.
+     - Scripts 1-3 train and test on historical data only to evaluate model accuracy. Each pair corresponds to a specific model (baseline, SARIMA, Prophet) and should be executed in numerical order to reproduce results.
          - Step 1: Baseline models for daily/hourly forecasts
          - Step 2: SARIMA models for daily/hourly forecasts
          - Step 3: Prophet models for daily/hourly forecasts
-  4. **Download and view outputs** 
-     - Each modeling script (1,2,3) automatically:
+     - Each modeling script (1-3) automatically:
          - Prints evaluation metrics: RMSE, MAE, and MAPE.
          - Generates plots of observed vs. predicted collisions
-  5. **Forecast Future Collisions**
-     - Scripts 4 and 5 provide ready-to-edit templates for forecasting the number of collisions in any NYC borough at daily or hourly scales.
+  4. **Forecast Future Collisions**
+     - Scripts 4 and 5 provide templates for forecasting the number of collisions in any NYC borough at daily or hourly scales.
      - You can specify:
          - The borough name (Manhattan, Brooklyn, Queens, Bronx, Staten Island)
          - A future date to generate the forecast
