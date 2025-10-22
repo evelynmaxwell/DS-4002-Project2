@@ -14,29 +14,27 @@
 The hierarchy of folders and files contained in this project are as follows:
 
 ```text
-Project1
+DS-4002-Project2
 ├── DATA
-│   ├── 
-│   │   └── 
-│   │       ├── 
-│   │       └── 
-│   │           ├── 
-│   ├── README.md
-│   ├── 
-│   ├── 
-│   └── 
+│   ├── collisions_cleaned.csv.zip
+│   └── collisions_raw.csv.zip
 ├── OUTPUT
-│   ├── 
-│   ├── 
-│   ├── 
-│   └── 
+│   ├── daily_baseline_model_figure.png
+│   ├── daily_prophet_model.png
+│   ├── hourly_baseline_model.png
+│   └── hourly_prophet_model.png
 ├── SCRIPTS
-│   ├── 
-│   ├── 
-│   ├── 
+│   ├── 1_BASELINE_daily.py
+│   ├── 1_BASELINE_hourly.py
+│   ├── 1_SARIMA_daily.py
+|   ├── 2_SARIMA_hourly.py
+|   ├── 3_Prophet_daily.py
+|   ├── 3_Prophet_hourly.py
 │   └── preprocessing.py
 ├── LICENSE.md
-└── README.md
+├── README.md
+└── collisions_filtered.csv
+
 ```
 
 ## 3. Reproducing Our Results
