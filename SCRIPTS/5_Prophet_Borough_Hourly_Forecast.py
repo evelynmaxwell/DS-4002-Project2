@@ -1,0 +1,164 @@
+import pandas as pd
+import numpy as np
+from prophet import Prophet
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+"""
+Description:
+    Prepare borough tags and hourly collision counts for all NYC boroughs, then
+    expose a function that fits a Prophet model for ONE selected borough and
+    forecasts the 24 hourly counts for a given calendar day.
+
+Inputs:
+    -  ../DATA/collisions_cleaned.csv
+        A cleaned dataset of NYC motor vehicle collisions containing:
+          - timestamp (datetime-like)
+          - location  (string in "(lat, lon)" format; first value = latitude)
+
+Outputs:
+    - A callable function:
+        fit_forecast_hourly_for_day(borough, target_date, cap_years=2, ...)
+      Returns a DataFrame of 24 rows (one per hour) with columns:
+        ['borough','ds','yhat', ('yhat_lower','yhat_upper' if enabled)]
+"""
+
+# ----------------------------- Helpers ----------------------------------------
+def time_series_split(df, train_ratio=0.8):
+    """Chronologically split a dataframe with ['ds','y', ...] into train/test segments."""
+    n = len(df)
+    cut = int(n * train_ratio)
+    return df.iloc[:cut].copy(), df.iloc[cut:].copy()
+
+def evaluate_forecast(actual, predicted):
+    """Compute RMSE, MAE, and MAPE for model evaluation."""
+    rmse = np.sqrt(mean_squared_error(actual, predicted))
+    mae  = mean_absolute_error(actual, predicted)
+    mape = np.mean(np.abs((actual - predicted) / np.maximum(actual, 1))) * 100
+    return rmse, mae, mape
+
+# ----------------------- Borough boxes (LAT, LON) -----------------------------
+BOROUGH_BBOX = {
+    "Manhattan":     {"lat": (40.68, 40.90), "lon": (-74.05, -73.90)},
+    "Brooklyn":      {"lat": (40.55, 40.75), "lon": (-74.10, -73.83)},
+    "Queens":        {"lat": (40.53, 40.82), "lon": (-73.98, -73.68)},
+    "Bronx":         {"lat": (40.79, 40.92), "lon": (-73.95, -73.75)},
+    "Staten Island": {"lat": (40.48, 40.66), "lon": (-74.28, -74.00)},
+}
+
+def assign_borough_vectorized(df):
+    """Vectorized borough tagging using approximate bounding boxes."""
+    conds = [
+        df["latitude"].between(*BOROUGH_BBOX["Manhattan"]["lat"])     & df["longitude"].between(*BOROUGH_BBOX["Manhattan"]["lon"]),
+        df["latitude"].between(*BOROUGH_BBOX["Brooklyn"]["lat"])      & df["longitude"].between(*BOROUGH_BBOX["Brooklyn"]["lon"]),
+        df["latitude"].between(*BOROUGH_BBOX["Queens"]["lat"])        & df["longitude"].between(*BOROUGH_BBOX["Queens"]["lon"]),
+        df["latitude"].between(*BOROUGH_BBOX["Bronx"]["lat"])         & df["longitude"].between(*BOROUGH_BBOX["Bronx"]["lon"]),
+        df["latitude"].between(*BOROUGH_BBOX["Staten Island"]["lat"]) & df["longitude"].between(*BOROUGH_BBOX["Staten Island"]["lon"]),
+    ]
+    choices = np.array(["Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island"], dtype=object)
+    return np.select(conds, choices, default=None).astype("object")
+
+# ------------------------- Load, parse, tag data ----------------------------
+CSV_PATH = "../DATA/collisions_cleaned.csv"
+usecols = ["timestamp", "location"]
+raw = pd.read_csv(CSV_PATH, usecols=usecols)
+
+raw["timestamp"] = pd.to_datetime(raw["timestamp"], errors="coerce")
+raw = raw.dropna(subset=["timestamp", "location"]).sort_values("timestamp")
+
+# Parse "(lat, lon)" -> float latitude/longitude
+m = (
+    raw["location"].astype(str).str.strip()
+       .str.extract(r".*?\(?\s*([+-]?\d+(?:\.\d+)?)\s*[, ]\s*([+-]?\d+(?:\.\d+)?)\s*\)?", expand=True)
+)
+raw["latitude"]  = pd.to_numeric(m[0], errors="coerce")
+raw["longitude"] = pd.to_numeric(m[1], errors="coerce")
+raw = raw.dropna(subset=["latitude", "longitude"])
+
+# Filter to plausible NYC bounds
+NYC_LAT = (40.45, 40.95)
+NYC_LON = (-74.30, -73.65)
+raw = raw[raw["latitude"].between(*NYC_LAT) & raw["longitude"].between(*NYC_LON)]
+
+# Tag by borough
+raw["borough"] = assign_borough_vectorized(raw)
+raw = raw.dropna(subset=["borough"])
+
+# Aggregate to hourly counts
+raw["ds"] = raw["timestamp"].dt.floor("h")
+hourly_all = (
+    raw.groupby(["borough", "ds"], as_index=False)
+       .size()
+       .rename(columns={"size": "y"})
+)
+hourly_all["is_weekend"] = (hourly_all["ds"].dt.dayofweek >= 5).astype(int)
+
+# ----------------- Function: fit & forecast for a single borough/day ----------
+def fit_forecast_hourly_for_day(
+    borough: str,
+    target_date,
+    cap_years: int = 2,
+    train_ratio: float = 0.8,
+    uncertainty_samples: int = 0,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Fit an hourly Prophet model for a single borough and forecast the 24 hours of target_date.
+
+    Steps:
+      1. Select the borough’s hourly series.
+      2. Cap it to the last N years (default=2).
+      3. Split capped data into 80/20 train/test.
+      4. Fit Prophet with weekly + daily seasonality and weekend regressor.
+      5. Predict the 24 hourly counts for target_date.
+    """
+    target_date = pd.Timestamp(target_date).normalize()
+    series = hourly_all.loc[hourly_all["borough"] == borough, ["ds", "y", "is_weekend"]].sort_values("ds").reset_index(drop=True)
+    if series.empty:
+        raise ValueError(f"No hourly data found for borough '{borough}'.")
+
+    # Cap to last N years before splitting
+    cap_start = series["ds"].max() - pd.Timedelta(days=365 * cap_years)
+    series_cap = series.loc[series["ds"] >= cap_start].reset_index(drop=True)
+
+    train, test = time_series_split(series_cap, train_ratio=train_ratio)
+
+    m = Prophet(
+        yearly_seasonality=True,
+        weekly_seasonality=False,
+        daily_seasonality=False,
+        n_changepoints=50,
+        changepoint_range=0.90,
+        changepoint_prior_scale=0.20,
+        seasonality_prior_scale=10.0,
+        holidays_prior_scale=0.01,
+        seasonality_mode="additive",
+        uncertainty_samples=uncertainty_samples,
+        interval_width=0.8
+    )
+    m.add_country_holidays(country_name="US")
+    m.add_seasonality(name="weekly", period=7, fourier_order=10, prior_scale=10)
+    m.add_seasonality(name="daily",  period=1, fourier_order=12, prior_scale=10)
+    m.add_regressor("is_weekend")
+
+    m.fit(train[["ds", "y", "is_weekend"]])
+
+    hours = pd.date_range(start=target_date, end=target_date + pd.Timedelta(hours=23), freq="H")
+    future = pd.DataFrame({"ds": hours})
+    future["is_weekend"] = (future["ds"].dt.dayofweek >= 5).astype(int)
+
+    pred = m.predict(future)
+    cols = ["ds", "yhat"] + [c for c in ("yhat_lower", "yhat_upper") if c in pred.columns]
+    pred = pred.loc[:, cols]
+    pred.insert(0, "borough", borough)
+
+    if verbose and len(test):
+        fcst_test = m.predict(test[["ds", "is_weekend"]])
+        eval_df = test[["ds", "y"]].merge(fcst_test[["ds", "yhat"]], on="ds", how="left")
+        rmse, mae, mape = evaluate_forecast(eval_df["y"].values, eval_df["yhat"].values)
+        print(f"[{borough}] Test RMSE: {rmse:.2f} | MAE: {mae:.2f} | MAPE (hourly): {mape:.2f}%")
+
+    return pred
+
+# --------------------------- Example ---------------------------------
+fc_bk = fit_forecast_hourly_for_day("Brooklyn", "2025-11-01", cap_years=2, uncertainty_samples=0)
+print(fc_bk.to_string(index=False))
