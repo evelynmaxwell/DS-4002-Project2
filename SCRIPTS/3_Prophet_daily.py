@@ -9,7 +9,7 @@ Description:
     collisions in New York City using cleaned crash data.
 
 Inputs:
-    - ../DATA/collisions_cleaned.csv.zip
+    - ../DATA/collisions_cleaned.csv
         A cleaned dataset with a 'timestamp' column (crash datetime).
 
 Process:
@@ -42,7 +42,7 @@ def evaluate_forecast(actual, predicted):
 
 # ---------- Load & Aggregate Data ----------
 usecols = ["timestamp"]
-df = pd.read_csv("../DATA/collisions_cleaned.csv.zip", usecols=usecols, parse_dates=["timestamp"])
+df = pd.read_csv("../DATA/collisions_cleaned.csv", usecols=usecols, parse_dates=["timestamp"])
 df = df.sort_values("timestamp")
 
 # Daily collision counts (each row is an incident)
