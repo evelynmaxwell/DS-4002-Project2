@@ -75,7 +75,7 @@ m = Prophet(
     changepoint_prior_scale=0.20,
     seasonality_prior_scale=10.0,
     holidays_prior_scale=0.01,
-    seasonality_mode="multiplicative",
+    seasonality_mode="additive",
     uncertainty_samples=0,
 )
 
