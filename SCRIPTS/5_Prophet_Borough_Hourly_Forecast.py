@@ -19,7 +19,7 @@ Process:
     1. Parse and clean input data.
     2. Convert "(lat, lon)" strings into numeric latitude and longitude.
     3. Assign each record to one of five boroughs using coarse geographic bounding boxes.
-    4. Aggregate data into **hourly** counts per borough and flag weekend hours.
+    4. Aggregate data into hourly counts per borough and flag weekend hours.
     5. For the selected borough:
         • Cap the data to the most recent N years (default = 2).
         • Split the capped data into 80% train and 20% test sets.
@@ -50,7 +50,7 @@ def time_series_split(df, train_ratio=0.8):
     return df.iloc[:cut].copy(), df.iloc[cut:].copy()
 
 def evaluate_forecast(actual, predicted):
-    """Compute RMSE, MAE, and MAPE for model evaluation."""
+    """Compute RMSE, MAE, and MAPE for forecast evaluation."""
     rmse = np.sqrt(mean_squared_error(actual, predicted))
     mae  = mean_absolute_error(actual, predicted)
     mape = np.mean(np.abs((actual - predicted) / np.maximum(actual, 1))) * 100
@@ -79,35 +79,35 @@ def assign_borough_vectorized(df):
     return np.select(conds, choices, default=None).astype("object")
 
 # ---------- Load and Preprocess Data ------------------------------------------
-CSV_PATH = "../DATA/collisions_cleaned.csv"
 usecols = ["timestamp", "location"]
-raw = pd.read_csv(CSV_PATH, usecols=usecols)
+df = pd.read_csv("../DATA/collisions_cleaned.csv", usecols=usecols)
 
-# Clean timestamps and extract coordinates
-raw["timestamp"] = pd.to_datetime(raw["timestamp"], errors="coerce")
-raw = raw.dropna(subset=["timestamp", "location"]).sort_values("timestamp")
+# Convert timestamps and drop invalid/missing rows
+df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+df = df.dropna(subset=["timestamp", "location"]).sort_values("timestamp")
 
+# Parse "(lat, lon)" text into numeric latitude and longitude
 m = (
-    raw["location"].astype(str).str.strip()
+    df["location"].astype(str).str.strip()
        .str.extract(r".*?\(?\s*([+-]?\d+(?:\.\d+)?)\s*[, ]\s*([+-]?\d+(?:\.\d+)?)\s*\)?", expand=True)
 )
-raw["latitude"]  = pd.to_numeric(m[0], errors="coerce")
-raw["longitude"] = pd.to_numeric(m[1], errors="coerce")
-raw = raw.dropna(subset=["latitude", "longitude"])
+df["latitude"]  = pd.to_numeric(m[0], errors="coerce")
+df["longitude"] = pd.to_numeric(m[1], errors="coerce")
+df = df.dropna(subset=["latitude", "longitude"])
 
 # Filter to plausible NYC bounds
 NYC_LAT = (40.45, 40.95)
 NYC_LON = (-74.30, -73.65)
-raw = raw[raw["latitude"].between(*NYC_LAT) & raw["longitude"].between(*NYC_LON)]
+df = df[df["latitude"].between(*NYC_LAT) & df["longitude"].between(*NYC_LON)]
 
 # Tag by borough
-raw["borough"] = assign_borough_vectorized(raw)
-raw = raw.dropna(subset=["borough"])
+df["borough"] = assign_borough_vectorized(df)
+df = df.dropna(subset=["borough"])
 
 # Aggregate to hourly counts
-raw["ds"] = raw["timestamp"].dt.floor("h")
+df["ds"] = df["timestamp"].dt.floor("h")
 hourly_all = (
-    raw.groupby(["borough", "ds"], as_index=False)
+    df.groupby(["borough", "ds"], as_index=False)
        .size()
        .rename(columns={"size": "y"})
 )
