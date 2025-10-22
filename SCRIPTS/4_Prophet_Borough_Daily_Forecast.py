@@ -11,8 +11,9 @@ Description:
 
 Inputs:
     - ../DATA/collisions_cleaned.csv
-        A cleaned dataset of NYC motor vehicle collisions containing a 
-        'timestamp' column representing crash date and time.
+        A cleaned dataset of NYC motor vehicle collisions containing:
+          • 'timestamp' — datetime of each crash.
+          • 'location'  — text coordinates formatted as "(latitude, longitude)".
 
 Process:
     1. Parse and clean input data.
