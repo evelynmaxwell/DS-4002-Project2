@@ -5,7 +5,7 @@ Description:
     cleaned crash data.
 
 Inputs:
-    - collisions_filtered.csv
+    - ../DATA/collisions_cleaned.csv
         A cleaned dataset of NYC motor vehicle collisions containing a 
         'CRASH DATETIME' column with timestamps for each collision event.
 
@@ -26,81 +26,58 @@ Outputs:
 
 import pandas as pd
 import numpy as np
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
-# --- Load and Clean Data ---
-df = pd.read_csv(
-    "collisions_filtered.csv",
-    parse_dates=["CRASH DATETIME"],
-    on_bad_lines="skip",
-    engine="python"
+# 1. Read and preprocess data
+df = pd.read_csv('../DATA/collisions_cleaned.csv',
+                 low_memory=False,
+                 dtype={'BOROUGH': 'string'})
+
+df['timestamp'] = pd.to_datetime(df['timestamp'])
+df = df.sort_values('timestamp')
+
+# Keep only last 2 years of data (hourly dataset is large)
+df = df[df['timestamp'] >= (df['timestamp'].max() - pd.DateOffset(years=2))]
+
+# 2. Aggregate by hour
+hourly = (
+    df.set_index('timestamp')
+      .resample('h')
+      .size()
+      .reset_index(name='TOTAL_COLLISIONS')
 )
 
-print(f"Loaded {len(df):,} rows successfully.")
-print("Columns:", df.columns.tolist())
+# 3. Train-test split (80/20)
+split_idx = int(len(hourly) * 0.8)
+train = hourly.iloc[:split_idx].copy()
+test = hourly.iloc[split_idx:].copy()
 
-# --- Trim dataset to last 5 years ---
-df = df[df["CRASH DATETIME"] >= (df["CRASH DATETIME"].max() - pd.DateOffset(years=5))]
-
-# --- Hourly Aggregation ---
-df = (
-    df.set_index("CRASH DATETIME")
-      .resample("h")
-      .agg({
-          "COLLISION_ID": "count",
-          "NUMBER OF PERSONS INJURED": "sum",
-          "NUMBER OF PERSONS KILLED": "sum"
-      })
-      .reset_index()
-      .rename(columns={"COLLISION_ID": "TOTAL_COLLISIONS"})
-)
-
-print(f"Aggregated shape: {df.shape}")
-print(df.head())
-
-# --- Train/Test Split (80/20 chronological) ---
-split_idx = int(len(df) * 0.8)
-train = df.iloc[:split_idx].copy()
-test = df.iloc[split_idx:].copy()
-
-# --- Baseline Model: 24-Hour Moving Average ---
+# 4. Baseline (24-hour moving average)
 window = 24
-train.loc[:, "rolling_mean"] = train["TOTAL_COLLISIONS"].rolling(window=window).mean()
+train['rolling_mean'] = train['TOTAL_COLLISIONS'].rolling(window=window).mean()
+last_train_mean = train['rolling_mean'].iloc[-1]
+baseline_preds = np.concatenate([train['rolling_mean'].iloc[-window:], np.full(len(test), last_train_mean)])
+test['baseline_pred'] = baseline_preds[-len(test):]
 
-baseline_preds = []
-history = list(train["TOTAL_COLLISIONS"].iloc[-window:])
+# 5. Evaluate metrics
+rmse = np.sqrt(mean_squared_error(test['TOTAL_COLLISIONS'], test['baseline_pred']))
+mae = mean_absolute_error(test['TOTAL_COLLISIONS'], test['baseline_pred'])
+mape = np.mean(np.abs((test['TOTAL_COLLISIONS'] - test['baseline_pred']) / (test['TOTAL_COLLISIONS'] + 1e-5))) * 100
 
-for actual in test["TOTAL_COLLISIONS"]:
-    pred = np.mean(history[-window:])
-    baseline_preds.append(pred)
-    history.append(actual)
-
-test.loc[:, "baseline_pred"] = baseline_preds
-
-# --- Evaluate ---
-rmse = np.sqrt(mean_squared_error(test["TOTAL_COLLISIONS"], test["baseline_pred"]))
-mae = mean_absolute_error(test["TOTAL_COLLISIONS"], test["baseline_pred"])
-mape = np.mean(
-    np.abs((test["TOTAL_COLLISIONS"] - test["baseline_pred"]) /
-           test["TOTAL_COLLISIONS"].replace(0, np.nan))
-) * 100
-
-print("\nHourly Baseline Model (24-hour Moving Average):")
+print(f"\nBaseline Model (24-Hour Moving Average):")
 print(f"RMSE: {rmse:.2f}")
 print(f"MAE: {mae:.2f}")
 print(f"MAPE: {mape:.2f}%")
 
-# --- Visualization ---
-plt.figure(figsize=(12,6))
-plt.plot(train["CRASH DATETIME"], train["TOTAL_COLLISIONS"], color="gray", alpha=0.4, label="Train Data")
-plt.plot(test["CRASH DATETIME"], test["TOTAL_COLLISIONS"], color="black", linewidth=1, label="Actual (Test)")
-plt.plot(test["CRASH DATETIME"], test["baseline_pred"], color="blue", linewidth=1.2, label="Baseline Prediction")
-
-plt.axvline(x=test["CRASH DATETIME"].iloc[0], color="red", linestyle="--", label="Train/Test Split")
-plt.title("Hourly Baseline Model (24-hour Moving Average)")
-plt.xlabel("Datetime")
-plt.ylabel("Total Collisions")
+# 6. Plot results
+plt.figure(figsize=(12, 6))
+plt.plot(hourly['timestamp'], hourly['TOTAL_COLLISIONS'], label='Actual', color='black', linewidth=0.8)
+plt.plot(test['timestamp'], test['baseline_pred'], label='24-Hour Baseline Prediction', color='blue', linestyle='--')
+plt.axvline(x=hourly['timestamp'].iloc[split_idx], color='red', linestyle='--', label='Train/Test Split')
+plt.xlabel('Timestamp')
+plt.ylabel('Total Collisions per Hour')
+plt.title('Baseline 24-Hour Moving Average Forecast (Hourly)')
 plt.legend()
 plt.tight_layout()
 plt.show()
