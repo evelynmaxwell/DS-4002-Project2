@@ -64,7 +64,7 @@ DS-4002-Project2
      - Navigate to the `SCRIPTS` folder.
      - Scripts 1-3 train and test on historical data only to evaluate model accuracy. Each pair corresponds to a specific model (baseline, SARIMA, Prophet) and should be executed in numerical order to reproduce results. Each script:
          - Prints evaluation metrics: RMSE, MAE, and MAPE.
-         - Generates plots of observed vs. predicted collisions and saves to `OUTPUT` folder.
+         - Generates plots of observed vs. predicted collisions.
   4. **Forecast Future Collisions**
      - Scripts 4 and 5 provide templates for forecasting the number of collisions in any NYC borough at daily or hourly scales.
      - You can specify:
