@@ -26,8 +26,11 @@ The hierarchy of folders and files contained in this project are as follows:
 ```text
 DS-4002-Project2
 ├── DATA
+│   ├── README.md
+│   ├── aggregate_hourly_distributions.png
 │   ├── collisions_cleaned.csv.zip
-│   └── collisions_raw.csv.zip
+│   ├── collisions_raw.csv.zip
+│   └── hourly_daily_heatmap.png
 ├── OUTPUT
 │   ├── daily_baseline_model_figure.png
 │   ├── daily_prophet_model.png
