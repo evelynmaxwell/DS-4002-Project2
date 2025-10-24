@@ -1,14 +1,17 @@
 # NYC Open Data Motor Vehicle Collisions – Crashes Metadata
 
 ## Data Summary
-The data [1] used in this project is the **“Motor Vehicle Collisions – Crashes” dataset**,
+The data used in this project is the **“Motor Vehicle Collisions – Crashes” dataset**,
 which is published by the New York City Police Department (NYPD) through the
-NYC Open Data portal. It contains event-level information on all police-reported
+NYC Open Data portal [1]. It contains event-level information on all police-reported
 motor vehicle collisions in New York City, with each row representing a single
 crash event. The original dataset includes approximately 2.21 million records
 and 29 attributes, covering factors such as crash date and time, borough and
 location, number of persons injured or killed, and contributing factors. 
-The data is provided in a structured CSV format.
+For this project, we applied a preprocessing script (`preprocessing.py` in the `SCRIPTS` folder)
+to clean the data. This script removes unnecessary columns, reorders fields for consistency,
+creates a unified `timestamp` column combining crash date and time, and drops records with missing
+location information. The resulting cleaned dataset includes approximately 1.97 million records and 5 attributes.
 
 ## Provenance
 The dataset originates from official police reports (MV-104AN forms), which must
