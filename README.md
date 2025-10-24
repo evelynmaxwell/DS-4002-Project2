@@ -50,7 +50,6 @@ DS-4002-Project2
 │   └── preprocessing.py
 ├── LICENSE.md
 └── README.md
-
 ```
 
 ## 3. Reproducing Our Results
