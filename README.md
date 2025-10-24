@@ -26,25 +26,27 @@ The hierarchy of folders and files contained in this project are as follows:
 ```text
 DS-4002-Project2
 ├── DATA
-│   ├── README.md
-│   ├── aggregate_hourly_distributions.png
+│   ├── aggregate_hourly_distribution.png
 │   ├── collisions_cleaned.csv.zip
 │   ├── collisions_raw.csv.zip
-│   └── hourly_daily_heatmap.png
+│   ├── hourly_daily_heatmap.png
+│   └── README.md
 ├── OUTPUT
-│   ├── daily_baseline_model_figure.png
+│   ├── daily_baseline_model.png
 │   ├── daily_prophet_model.png
+│   ├── daily_sarima_model.png
 │   ├── hourly_baseline_model.png
-│   └── hourly_prophet_model.png
+│   ├── hourly_prophet_model.png
+│   └── hourly_sarima_model.png
 ├── SCRIPTS
-│   ├── 1_BASELINE_daily.py
-│   ├── 1_BASELINE_hourly.py
-│   ├── 2_SARIMA_daily.py
-|   ├── 2_SARIMA_hourly.py
-|   ├── 3_Prophet_daily.py
-|   ├── 3_Prophet_hourly.py
-|   ├── 4_Prophet_Borough_Daily_Forecast.py
-|   ├── 5_Prophet_Borough_Hourly_Forecast.py
+│   ├── 1_baseline_daily.py
+│   ├── 1_baseline_hourly.py
+│   ├── 2_sarima_daily.py
+|   ├── 2_sarima_hourly.py
+|   ├── 3_prophet_daily.py
+|   ├── 3_prophet_hourly.py
+|   ├── 4_prophet_borough_daily.py
+|   ├── 4_prophet_borough_hourly.py
 │   └── preprocessing.py
 ├── LICENSE.md
 └── README.md
