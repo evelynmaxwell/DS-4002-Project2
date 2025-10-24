@@ -56,9 +56,12 @@ the COVID-19 pandemic.
 
 
 ## Explanatory Plots
+![aggregate_hourly_distribution.png](aggregate_hourly_distribution.png)
 
 **Figure 1**. Aggregate Hourly Distribution of Motor Vehicle Collisions
 in New York City (2012–2025)
+
+![hourly_daily_heatmap.png](hourly_daily_heatmap.png)
 
 **Figure 2**. Hourly Distribution of Collisions by Day of Week (2012–2025)
 
